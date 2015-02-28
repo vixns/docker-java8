@@ -1,6 +1,6 @@
 # based on Martijn Koster's "https://github.com/makuk66/docker-oracle-java7"
 
-FROM debian:wheezy
+FROM vixns/base
 MAINTAINER Stéphane Cottin <stephane.cottin@vixns.com>
 
 RUN \
