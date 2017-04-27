@@ -1,5 +1,3 @@
-# based on Martijn Koster's "https://github.com/makuk66/docker-oracle-java7"
-
 FROM vixns/base
 MAINTAINER Stéphane Cottin <stephane.cottin@vixns.com>
 
