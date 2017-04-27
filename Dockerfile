@@ -3,32 +3,33 @@
 FROM vixns/base
 MAINTAINER Stéphane Cottin <stephane.cottin@vixns.com>
 
-RUN \
-    export DEBIAN_FRONTEND=noninteractive && \
-    apt-get update && \
-    apt-get upgrade -y && \
-    echo "deb http://ppa.launchpad.net/webupd8team/java/ubuntu trusty main" | tee /etc/apt/sources.list.d/webupd8team-java.list && \
-    echo "deb-src http://ppa.launchpad.net/webupd8team/java/ubuntu precise main" | tee -a /etc/apt/sources.list.d/webupd8team-java.list && \
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys EEA14886 && \
-    apt-get update && \
-    apt-get -y install locales && \
-    sed -i.bak -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    locale-gen && \
-    update-locale LC_ALL= "en_US.UTF-8" && \
-    export LANGUAGE=en_US:en && \
-    export LANG=en_US.UTF-8 && \
-    export LC_ALL=en_US.UTF-8 && \
-    dpkg-reconfigure locales && \
-    echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
-    apt-get -y install oracle-java8-installer && \
-    update-alternatives --display java && \
-    apt-get -y install oracle-java8-set-default && \
-    rm -fr /var/cache/oracle-jdk8-installer && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+ENV LANG=C.UTF-8 \
+    JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 \
+    JAVA_VERSION=8u121 \
+    JAVA_DEBIAN_VERSION=8u121-b13-1~bpo8+1 \
+    CA_CERTIFICATES_JAVA_VERSION=20161107~bpo8+1
 
-ENV LANG       en_US.UTF-8
-ENV LC_ALL     en_US.UTF-8
-ENV LANGUAGE   en_US:en
-
-ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
+RUN { \
+        echo '#!/bin/sh'; \
+        echo 'set -e'; \
+        echo; \
+        echo 'dirname "$(dirname "$(readlink -f "$(which javac || which java)")")"'; \
+    } > /usr/local/bin/docker-java-home \    
+    && chmod +x /usr/local/bin/docker-java-home \
+    && set -ex; \
+    \
+    apt-get update; \
+    apt-get install -y \
+        openjdk-8-jdk="$JAVA_DEBIAN_VERSION" \
+        ca-certificates-java="$CA_CERTIFICATES_JAVA_VERSION" \
+    ; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
+    \
+# verify that "docker-java-home" returns what we expect
+    [ "$JAVA_HOME" = "$(docker-java-home)" ]; \
+    \
+# update-alternatives so that future installs of other OpenJDK versions don't change /usr/bin/java
+    update-alternatives --get-selections | awk -v home="$JAVA_HOME" 'index($3, home) == 1 { $2 = "manual"; print | "update-alternatives --set-selections" }'; \
+# ... and verify that it actually worked for one of the alternatives we care about
+    update-alternatives --query java | grep -q 'Status: manual'; \
+    /var/lib/dpkg/info/ca-certificates-java.postinst configure 
